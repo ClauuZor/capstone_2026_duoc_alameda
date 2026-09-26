@@ -1,0 +1,1 @@
+# capstone_2026_duoc_alameda
