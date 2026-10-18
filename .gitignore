@@ -1,0 +1,22 @@
+# El repositorio es público: nunca subir credenciales ni documentos reales.
+.env
+.env.*
+!.env.example
+!.env.demo
+credentials*.json
+service-account*.json
+*.pem
+
+# Dependencias y builds
+node_modules/
+dist/
+dist-demo/
+__pycache__/
+.venv/
+venv/
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
