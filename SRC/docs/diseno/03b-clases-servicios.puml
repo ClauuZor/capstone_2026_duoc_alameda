@@ -1,0 +1,62 @@
+@startuml clases-servicios
+!include _estilo.iuml
+skinparam classAttributeIconSize 0
+title Cotiza+ · Diagrama de clases: ingesta y servicios
+
+package "Ingesta" {
+  class MonitorDrive {
+    + detectar_nuevos(): list[ArchivoDrive]
+  }
+  class ClienteDrive {
+    - carpeta_id: str
+    + listar_pdfs(): list[ArchivoDrive]
+    + descargar(archivo): bytes
+  }
+  class ProcesadorDocumentos {
+    + procesar(archivo: ArchivoDrive): Documento
+  }
+  interface Extractor {
+    + extraer(pdf: bytes): DatosCotizacion
+  }
+  class ExtractorReglas
+  class ExtractorIA
+  class Normalizador {
+    + normalizar(datos): DatosCotizacion
+    + validar(datos): list[str]
+  }
+  class DatosCotizacion <<dataclass>> {
+    numero, fecha, cliente, rut,
+    items, monto_neto, iva, total
+    + faltan_campos(): bool
+  }
+}
+
+package "Servicios (API y acceso a datos)" {
+  class ServicioAuth {
+    + autenticar(email, password): Usuario
+    + crear_token(usuario): str
+    + verificar_token(token): Usuario
+  }
+  class RepositorioCotizaciones {
+    + existe_numero(numero): bool
+    + guardar(datos, documento): Cotizacion
+    + buscar(q, cliente_id, anio, pagina): Pagina
+    + resumen(anio, cliente_id): MetricasResumen
+    + por_periodo(anio, cliente_id, granularidad)
+  }
+}
+
+class Cotizacion <<modelo>>
+class Usuario <<modelo>>
+
+MonitorDrive --> ClienteDrive
+MonitorDrive --> ProcesadorDocumentos
+ProcesadorDocumentos --> Extractor : 1° reglas,\n2° IA si faltan campos
+Extractor <|.. ExtractorReglas
+Extractor <|.. ExtractorIA
+ProcesadorDocumentos --> Normalizador
+ProcesadorDocumentos --> RepositorioCotizaciones
+Extractor ..> DatosCotizacion : crea
+RepositorioCotizaciones ..> Cotizacion
+ServicioAuth ..> Usuario
+@enduml

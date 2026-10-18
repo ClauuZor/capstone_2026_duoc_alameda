@@ -1,0 +1,44 @@
+@startuml secuencia-consulta
+!include _estilo.iuml
+autonumber
+skinparam maxMessageSize 170
+skinparam ParticipantPadding 4
+skinparam BoxPadding 4
+hide footbox
+title Cotiza+ · Secuencia: iniciar sesión y filtrar cotizaciones (HU-05, HU-07, HU-08)
+
+actor "Usuario" as U
+participant "Aplicación web\n(React)" as F
+participant "API REST\n(FastAPI)" as API
+participant "Servicio\nAuth" as A
+participant "Repositorio\nCotizaciones" as REPO
+database "PostgreSQL" as DB
+
+U -> F : ingresa correo y contraseña
+F -> API : POST /auth/login (formulario)
+API -> A : autenticar(email, password)
+A -> DB : SELECT usuario
+alt credenciales válidas
+  A --> API : usuario
+  API --> F : 200 { access_token (JWT con exp) }
+  F -> F : guarda el token en la sesión del navegador
+else credenciales inválidas
+  API --> F : 401
+  F --> U : "Correo o contraseña incorrectos."
+end
+
+U -> F : elige año 2025
+F -> API : GET /cotizaciones?anio=2025&page=1\nAuthorization: Bearer <token>
+API -> A : verificar_token(token)
+alt token vencido o inválido
+  API --> F : 401
+  F --> U : vuelve al login: "Tu sesión expiró"
+else token válido
+  API -> REPO : buscar(anio=2025, pagina=1)
+  REPO -> DB : SELECT ... WHERE fecha en 2025\nORDER BY fecha DESC, id DESC LIMIT 20
+  DB --> REPO : filas + total
+  REPO --> API : página
+  API --> F : 200 { items, total, page, page_size }
+  F --> U : tabla de cotizaciones de 2025
+end
+@enduml

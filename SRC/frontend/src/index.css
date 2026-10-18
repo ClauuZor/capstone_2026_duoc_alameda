@@ -1,0 +1,126 @@
+@import "tailwindcss";
+@import "@fontsource-variable/archivo/wdth.css";
+
+/*
+  Paleta tomada del propio rubro:
+  - vidrio: el verde del canto de un cristal flotado, único color de acento.
+  - aluminio: grises de perfil anodizado para bordes y texto secundario.
+  - grafito: texto principal. lámina: fondo de la aplicación.
+*/
+:root {
+  --c-fondo: #f2f4f3;
+  --c-superficie: #ffffff;
+  --c-hundido: #e9edeb;
+  --c-texto: #1d2422;
+  --c-texto-suave: #57625e;
+  --c-borde: #d3d9d6;
+  --c-borde-fuerte: #a7b0ac;
+  --c-vidrio: #2e6b5e;
+  --c-vidrio-fuerte: #1f4e44;
+  --c-vidrio-tenue: #dfece8;
+  --c-alerta: #8a5208;
+  --c-alerta-tenue: #fbefd9;
+  --c-error: #a3362b;
+  --c-error-tenue: #f8e4e1;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --c-fondo: #141918;
+    --c-superficie: #1b2220;
+    --c-hundido: #222b28;
+    --c-texto: #e3eae7;
+    --c-texto-suave: #9ba8a3;
+    --c-borde: #2f3a37;
+    --c-borde-fuerte: #4a5753;
+    --c-vidrio: #74bba9;
+    --c-vidrio-fuerte: #a3d6c8;
+    --c-vidrio-tenue: #1f3631;
+    --c-alerta: #e2a957;
+    --c-alerta-tenue: #33291a;
+    --c-error: #ee8d81;
+    --c-error-tenue: #3b2321;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --c-fondo: #141918;
+  --c-superficie: #1b2220;
+  --c-hundido: #222b28;
+  --c-texto: #e3eae7;
+  --c-texto-suave: #9ba8a3;
+  --c-borde: #2f3a37;
+  --c-borde-fuerte: #4a5753;
+  --c-vidrio: #74bba9;
+  --c-vidrio-fuerte: #a3d6c8;
+  --c-vidrio-tenue: #1f3631;
+  --c-alerta: #e2a957;
+  --c-alerta-tenue: #33291a;
+  --c-error: #ee8d81;
+  --c-error-tenue: #3b2321;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-fondo: var(--c-fondo);
+  --color-superficie: var(--c-superficie);
+  --color-hundido: var(--c-hundido);
+  --color-texto: var(--c-texto);
+  --color-texto-suave: var(--c-texto-suave);
+  --color-borde: var(--c-borde);
+  --color-borde-fuerte: var(--c-borde-fuerte);
+  --color-vidrio: var(--c-vidrio);
+  --color-vidrio-fuerte: var(--c-vidrio-fuerte);
+  --color-vidrio-tenue: var(--c-vidrio-tenue);
+  --color-alerta: var(--c-alerta);
+  --color-alerta-tenue: var(--c-alerta-tenue);
+  --color-error: var(--c-error);
+  --color-error-tenue: var(--c-error-tenue);
+  --font-sans: "Archivo Variable", "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+html,
+body,
+#root {
+  min-height: 100%;
+}
+body {
+  background: var(--c-fondo);
+  color: var(--c-texto);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--c-vidrio);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Cifras: el elemento con personalidad de la interfaz. Archivo ensanchado y tabular. */
+.cifra {
+  font-stretch: 118%;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

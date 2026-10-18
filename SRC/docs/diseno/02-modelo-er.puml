@@ -1,0 +1,70 @@
+@startuml modelo-er
+!include _estilo.iuml
+hide circle
+skinparam linetype ortho
+title Cotiza+ · Modelo entidad-relación (PostgreSQL)
+
+entity "usuario" as usuario {
+  * id : serial <<PK>>
+  --
+  * email : varchar(120) <<UK>>
+  * nombre : varchar(120)
+  * hash_password : varchar(255)
+  * activo : boolean
+  * creado_en : timestamptz
+}
+
+entity "cliente" as cliente {
+  * id : serial <<PK>>
+  --
+  * nombre : varchar(200)
+    rut : varchar(12) <<UK, nulo>>
+  * creado_en : timestamptz
+}
+
+entity "documento" as documento {
+  * id : serial <<PK>>
+  --
+  * drive_file_id : varchar(100) <<UK>>
+  * nombre_archivo : varchar(255)
+    url_drive : text
+  * estado : varchar(12)  (procesado | error | duplicado)
+    metodo_extraccion : varchar(8)  (reglas | ia)
+    mensaje_error : text
+  * procesado_en : timestamptz
+}
+
+entity "cotizacion" as cotizacion {
+  * id : serial <<PK>>
+  --
+  * numero : varchar(30) <<UK>>
+  * fecha : date  (emisión)
+  * cliente_id : int <<FK>>
+  * documento_id : int <<FK, UK>>
+  * monto_neto : integer  (CLP)
+  * iva : integer
+  * total : integer
+  * creado_en : timestamptz
+}
+
+entity "item_cotizacion" as item {
+  * id : serial <<PK>>
+  --
+  * cotizacion_id : int <<FK>>
+  * linea : smallint
+  * descripcion : text
+  * cantidad : numeric(10,2)
+    unidad : varchar(10)
+  * precio_unitario : integer
+  * subtotal : integer
+}
+
+cliente ||--o{ cotizacion : "recibe"
+cotizacion ||--|{ item : "contiene"
+documento ||--o| cotizacion : "origina"
+
+note bottom of usuario
+  Sin relación con las cotizaciones:
+  solo controla el acceso a la API.
+end note
+@enduml

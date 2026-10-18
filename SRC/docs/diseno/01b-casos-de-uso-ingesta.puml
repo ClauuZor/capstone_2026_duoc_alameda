@@ -1,0 +1,26 @@
+@startuml casos-de-uso-ingesta
+!include _estilo.iuml
+left to right direction
+title Cotiza+ · Casos de uso · Épica 001: ingesta y extracción automática
+
+actor "Planificador\n(tiempo)" as T
+actor "Encargado de\ndocumentos" as ED
+
+rectangle "Cotiza+" {
+  usecase "Detectar cotizaciones\nnuevas (HU-01)" as UC9
+  usecase "Extraer datos con\nreglas (HU-02)" as UC10
+  usecase "Extraer datos con\nIA (HU-03)" as UC11
+  usecase "Normalizar y almacenar\nsin duplicados (HU-04)" as UC12
+}
+
+actor "Google Drive" as GD <<sistema externo>>
+actor "Servicio de IA" as IA <<sistema externo>>
+
+ED --> GD : sube el PDF
+T --> UC9
+UC9 --> GD : lee la carpeta
+UC9 ..> UC10 : <<include>>
+UC11 .> UC10 : <<extend>>\nfaltan campos
+UC11 --> IA
+UC10 ..> UC12 : <<include>>
+@enduml

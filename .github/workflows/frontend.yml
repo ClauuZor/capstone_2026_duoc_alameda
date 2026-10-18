@@ -1,0 +1,29 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths: ["SRC/frontend/**", ".github/workflows/frontend.yml"]
+  pull_request:
+    paths: ["SRC/frontend/**", ".github/workflows/frontend.yml"]
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SRC/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: SRC/frontend/package-lock.json
+      - run: npm ci
+      - name: Tipos
+        run: npm run typecheck
+      - name: Pruebas
+        run: npm test
+      - name: Build
+        run: npm run build

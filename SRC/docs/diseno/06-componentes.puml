@@ -1,0 +1,37 @@
+@startuml componentes
+!include _estilo.iuml
+title Cotiza+ · Diagrama de componentes y despliegue
+
+node "Navegador del usuario" {
+  component "Aplicación web\n(React + TypeScript)" as SPA
+  note right of SPA
+    Pantallas: Login, Resumen,
+    Cotizaciones, Detalle
+  end note
+}
+
+node "Servidor de aplicación" {
+  component "API REST\n(FastAPI)" as API
+  component "Autenticación\n(JWT)" as AUTH
+  component "Consultas y\nmétricas" as CONS
+  component "Proceso de ingesta\n(Python, programado)" as ING
+  component "Extracción\n(reglas + IA de respaldo)" as EXT
+  API --> AUTH
+  API --> CONS
+  ING --> EXT
+}
+
+database "PostgreSQL" as DB
+
+cloud "Servicios externos" {
+  component "Google Drive API" as GD
+  component "Servicio de IA" as IA
+}
+
+SPA --> API : HTTPS · JSON\n/api/v1 (Bearer JWT)
+CONS --> DB : SQL
+AUTH --> DB : SQL
+ING --> DB : SQL
+ING --> GD : cuenta de servicio\n(solo lectura)
+EXT --> IA : solo si las reglas\nno bastan
+@enduml

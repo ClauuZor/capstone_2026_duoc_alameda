@@ -1,0 +1,50 @@
+@startuml secuencia-ingesta
+!include _estilo.iuml
+autonumber
+skinparam maxMessageSize 170
+skinparam ParticipantPadding 4
+skinparam BoxPadding 4
+hide footbox
+title Cotiza+ · Secuencia: ingesta de una cotización nueva (HU-01 a HU-04)
+
+participant "Planificador" as T
+participant "Monitor\nDrive" as M
+participant "Cliente\nDrive" as C
+participant "Google\nDrive API" as GD
+participant "Procesador\nDocumentos" as P
+participant "Extractor\nReglas" as R
+participant "Extractor\nIA" as IA
+participant "Normalizador" as N
+participant "Repositorio\nCotizaciones" as REPO
+database "PostgreSQL" as DB
+
+T -> M : detectar_nuevos()
+M -> C : listar_pdfs()
+C -> GD : files.list(carpeta, solo lectura)
+GD --> C : archivos
+M -> DB : ¿drive_file_id ya registrado?
+DB --> M : archivos no procesados
+loop por cada archivo nuevo
+  M -> P : procesar(archivo)
+  P -> C : descargar(archivo)
+  C -> GD : files.get(id)
+  GD --> C : PDF
+  C --> P : PDF
+  P -> R : extraer(pdf)
+  R --> P : datos
+  alt faltan campos obligatorios
+    P -> IA : extraer(pdf)
+    IA --> P : datos
+  end
+  P -> N : normalizar(datos) y validar(datos)
+  N --> P : datos normalizados / errores
+  alt datos inválidos o sin texto
+    P -> DB : documento(estado = error, mensaje)
+  else número de cotización ya existe
+    P -> DB : documento(estado = duplicado)
+  else datos válidos
+    P -> REPO : guardar(datos, documento)
+    REPO -> DB : INSERT cliente (si es nuevo),\ncotizacion, items y documento
+  end
+end
+@enduml

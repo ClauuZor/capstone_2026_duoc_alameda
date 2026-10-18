@@ -1,0 +1,42 @@
+# Publica la demo del frontend (datos simulados) en GitHub Pages.
+# Se ejecuta a mano: pestaña Actions → "Demo del frontend" → Run workflow.
+# Requiere una vez: Settings → Pages → Source: "GitHub Actions".
+name: Demo del frontend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: SRC/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: SRC/frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:demo
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: SRC/frontend/dist-demo
+      - id: despliegue
+        uses: actions/deploy-pages@v4

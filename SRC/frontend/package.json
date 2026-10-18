@@ -1,0 +1,45 @@
+{
+  "name": "cotiza-plus-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Frontend de Cotiza+ \u2014 consulta de cotizaciones, filtros y m\u00e9tricas (Proyecto APT, Capstone Duoc UC)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:demo": "tsc -b && vite build --mode demo",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "api:simulada": "vite-node scripts/api-simulada.ts",
+    "verificar:api": "vite-node scripts/verificar-contrato.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@tanstack/react-query": "^5.104.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6",
+    "recharts": "^2.15.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^25.0.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vite-node": "^2.1.9",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^2.1.9",
+    "zod": "^3.25.76"
+  }
+}

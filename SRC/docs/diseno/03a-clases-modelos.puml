@@ -1,0 +1,54 @@
+@startuml clases-modelos
+!include _estilo.iuml
+skinparam classAttributeIconSize 0
+title Cotiza+ · Diagrama de clases: modelos de datos (SQLAlchemy)
+
+
+  class Usuario {
+    id: int
+    email: str
+    nombre: str
+    hash_password: str
+    activo: bool
+  }
+  class Cliente {
+    id: int
+    nombre: str
+    rut: str | None
+  }
+  class Cotizacion {
+    id: int
+    numero: str
+    fecha: date
+    monto_neto: int
+    iva: int
+    total: int
+  }
+  class ItemCotizacion {
+    linea: int
+    descripcion: str
+    cantidad: Decimal
+    unidad: str | None
+    precio_unitario: int
+    subtotal: int
+  }
+  class Documento {
+    drive_file_id: str
+    nombre_archivo: str
+    url_drive: str | None
+    estado: EstadoDocumento
+    metodo_extraccion: str | None
+    mensaje_error: str | None
+  }
+  enum EstadoDocumento {
+    PROCESADO
+    ERROR
+    DUPLICADO
+  }
+
+Cliente "1" -- "0..*" Cotizacion
+Cotizacion "1" *-- "1..*" ItemCotizacion
+Documento "1" -- "0..1" Cotizacion
+Documento --> EstadoDocumento
+Usuario -[hidden]- Cliente
+@enduml
