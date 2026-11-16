@@ -5,46 +5,41 @@ skinparam maxMessageSize 170
 skinparam ParticipantPadding 4
 skinparam BoxPadding 4
 hide footbox
-title Cotiza+ · Secuencia: ingesta de una cotización nueva (HU-01 a HU-04)
+title Cotiza+ · Secuencia: ingesta de cotizaciones nuevas (HU-01 a HU-04)
 
-participant "Planificador" as T
-participant "Monitor\nDrive" as M
-participant "Cliente\nDrive" as C
+participant "Planificador o\nPOST /ingesta/sincronizar" as T
+participant "ingesta" as ING
+participant "drive" as C
 participant "Google\nDrive API" as GD
-participant "Procesador\nDocumentos" as P
-participant "Extractor\nReglas" as R
-participant "Extractor\nIA" as IA
-participant "Normalizador" as N
-participant "Repositorio\nCotizaciones" as REPO
+participant "extraccion" as EXT
 database "PostgreSQL" as DB
 
-T -> M : detectar_nuevos()
-M -> C : listar_pdfs()
-C -> GD : files.list(carpeta, solo lectura)
+T -> ING : sincronizar_empresa(empresa)
+ING -> DB : integración activa de la empresa
+DB --> ING : refresh token cifrado
+ING -> ING : descifrar (Fernet)
+ING -> C : listar_pdfs(carpeta de la empresa)
+C -> GD : files.list (OAuth, solo lectura)
 GD --> C : archivos
-M -> DB : ¿drive_file_id ya registrado?
-DB --> M : archivos no procesados
-loop por cada archivo nuevo
-  M -> P : procesar(archivo)
-  P -> C : descargar(archivo)
-  C -> GD : files.get(id)
+ING -> DB : google_drive_id ya registrados
+loop por cada archivo no registrado
+  ING -> C : descargar(id)
+  C -> GD : files.get_media(id)
   GD --> C : PDF
-  C --> P : PDF
-  P -> R : extraer(pdf)
-  R --> P : datos
-  alt faltan campos obligatorios
-    P -> IA : extraer(pdf)
-    IA --> P : datos
-  end
-  P -> N : normalizar(datos) y validar(datos)
-  N --> P : datos normalizados / errores
-  alt datos inválidos o sin texto
-    P -> DB : documento(estado = error, mensaje)
-  else número de cotización ya existe
-    P -> DB : documento(estado = duplicado)
-  else datos válidos
-    P -> REPO : guardar(datos, documento)
-    REPO -> DB : INSERT cliente (si es nuevo),\ncotizacion, items y documento
+  ING -> ING : SHA-256 del PDF
+  alt mismo hash que otro documento
+    ING -> DB : documento(estado = duplicado)
+  else contenido nuevo
+    ING -> EXT : extraer_texto_pdf + extraer_cotizacion
+    alt faltan datos o montos no cuadran
+      EXT --> ING : ExtraccionError
+      ING -> DB : documento(estado = error, mensaje)
+    else número de cotización ya existe
+      ING -> DB : documento(estado = duplicado)
+    else datos válidos
+      ING -> DB : cliente (busca por RUT o crea),\ncotización, ítems y documento(procesado)
+    end
   end
 end
+ING --> T : resumen (encontrados, procesados,\nduplicados, errores, omitidos)
 @enduml

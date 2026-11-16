@@ -59,3 +59,8 @@ class Empresa(Base):
         "Documento",
         back_populates="empresa"
     )
+
+    usuarios: Mapped[list["Usuario"]] = relationship(
+        "Usuario",
+        back_populates="empresa"
+    )

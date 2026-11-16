@@ -6,7 +6,8 @@ import { EstadoCarga, EstadoError, EstadoVacio } from "../components/Estados";
 import { Paginacion } from "../components/Paginacion";
 import { useAnios, useClientes, useCotizaciones } from "../hooks/consultas";
 import { useTitulo } from "../hooks/useTitulo";
-import { escribirFiltros, hayFiltrosActivos, leerFiltros } from "../lib/filtros";
+import { FiltrosAtributos, resumenProducto } from "../components/FiltrosAtributos";
+import { escribirFiltros, hayFiltrosActivos, hayFiltrosAtributo, leerFiltros } from "../lib/filtros";
 import { formatCLP, formatFecha, plural } from "../lib/format";
 
 export function CotizacionesPage() {
@@ -40,11 +41,11 @@ export function CotizacionesPage() {
 
   return (
     <>
-      <Encabezado titulo="Cotizaciones" descripcion="Busca por número de cotización, nombre o RUT del cliente." />
+      <Encabezado titulo="Cotizaciones" descripcion="Busca por número de cotización, nombre o RUT del cliente, o por el proyecto." />
 
       <section aria-label="Filtros" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_2fr_1fr_auto] lg:items-end">
         <Campo etiqueta="Buscar" id="buscar">
-          <Entrada id="buscar" type="search" placeholder="Número, cliente o RUT" value={texto} onChange={(e) => setTexto(e.target.value)} />
+          <Entrada id="buscar" type="search" placeholder="Número, cliente, RUT o proyecto" value={texto} onChange={(e) => setTexto(e.target.value)} />
         </Campo>
         <Campo etiqueta="Cliente" id="cliente">
           <Selector id="cliente" value={filtros.cliente_id ?? ""} onChange={(e) => actualizar({ cliente_id: e.target.value ? Number(e.target.value) : undefined })}>
@@ -76,6 +77,19 @@ export function CotizacionesPage() {
         </button>
       </section>
 
+      <details className="mt-3 rounded-lg border border-borde bg-superficie" open={hayFiltrosAtributo(filtros) || filtros.monto_min !== undefined || filtros.monto_max !== undefined}>
+        <summary className="cursor-pointer px-4 py-2.5 font-medium select-none">Más filtros</summary>
+        <section aria-label="Más filtros" className="grid gap-3 border-t border-borde p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FiltrosAtributos prefijo="cot" valores={filtros} alCambiar={actualizar} />
+          <Campo etiqueta="Neto desde ($)" id="monto-min">
+            <Entrada id="monto-min" type="number" min={0} step={100000} inputMode="numeric" defaultValue={filtros.monto_min ?? ""} key={`min-${filtros.monto_min}`} onBlur={(e) => actualizar({ monto_min: e.target.value === "" ? undefined : Number(e.target.value) })} placeholder="0" />
+          </Campo>
+          <Campo etiqueta="Neto hasta ($)" id="monto-max">
+            <Entrada id="monto-max" type="number" min={0} step={100000} inputMode="numeric" defaultValue={filtros.monto_max ?? ""} key={`max-${filtros.monto_max}`} onBlur={(e) => actualizar({ monto_max: e.target.value === "" ? undefined : Number(e.target.value) })} placeholder="Sin límite" />
+          </Campo>
+        </section>
+      </details>
+
       <div className="mt-6">
         {cotizaciones.isError ? (
           <EstadoError mensaje={cotizaciones.error.message} alReintentar={() => cotizaciones.refetch()} />
@@ -100,13 +114,16 @@ export function CotizacionesPage() {
               {cotizaciones.isFetching && ", actualizando…"}
             </p>
             <div className={`overflow-x-auto rounded-lg border border-borde bg-superficie ${cotizaciones.isPlaceholderData ? "opacity-60" : ""}`}>
-              <table className="w-full min-w-[40rem] text-left">
+              <table className="w-full min-w-[56rem] text-left">
                 <caption className="sr-only">Listado de cotizaciones</caption>
                 <thead className="border-b border-borde text-sm text-texto-suave">
                   <tr>
                     <th scope="col" className="px-4 py-2.5 font-medium">Número</th>
                     <th scope="col" className="px-4 py-2.5 font-medium">Fecha</th>
                     <th scope="col" className="px-4 py-2.5 font-medium">Cliente</th>
+                    <th scope="col" className="px-4 py-2.5 font-medium">Producto</th>
+                    <th scope="col" className="px-4 py-2.5 font-medium">Comuna</th>
+                    <th scope="col" className="px-4 py-2.5 font-medium">Vendedor</th>
                     <th scope="col" className="px-4 py-2.5 text-right font-medium">Ítems</th>
                     <th scope="col" className="px-4 py-2.5 text-right font-medium">Neto</th>
                     <th scope="col" className="px-4 py-2.5 text-right font-medium">Total con IVA</th>
@@ -126,9 +143,12 @@ export function CotizacionesPage() {
                         </Link>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap tabular-nums">{formatFecha(c.fecha)}</td>
-                      <td className="max-w-[18rem] truncate px-4 py-3" title={c.cliente.nombre}>
+                      <td className="max-w-[16rem] truncate px-4 py-3" title={c.cliente.nombre}>
                         {c.cliente.nombre}
                       </td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap text-texto-suave">{resumenProducto(c) || "—"}</td>
+                      <td className="max-w-[10rem] truncate px-4 py-3 text-sm text-texto-suave">{c.comuna ?? "—"}</td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap text-texto-suave">{c.vendedor ?? "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{c.cantidad_items}</td>
                       <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{formatCLP(c.monto_neto)}</td>
                       <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCLP(c.total)}</td>

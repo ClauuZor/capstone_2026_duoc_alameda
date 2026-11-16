@@ -6,9 +6,10 @@ import type { ApiClient } from "./types";
 type Consulta = Record<string, string | number | undefined | null>;
 
 interface Opciones {
-  metodo?: "GET" | "POST";
+  metodo?: "GET" | "POST" | "PUT" | "DELETE";
   consulta?: Consulta;
   formulario?: Record<string, string>;
+  json?: unknown;
   autenticada?: boolean;
 }
 
@@ -21,7 +22,7 @@ function construirUrl(ruta: string, consulta?: Consulta) {
   return `${config.apiBaseUrl}${ruta}${qs ? `?${qs}` : ""}`;
 }
 
-async function solicitar<T>(ruta: string, { metodo = "GET", consulta, formulario, autenticada = true }: Opciones = {}): Promise<T> {
+async function solicitar<T>(ruta: string, { metodo = "GET", consulta, formulario, json, autenticada = true }: Opciones = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = getToken();
   if (autenticada && token) headers.Authorization = `Bearer ${token}`;
@@ -30,6 +31,9 @@ async function solicitar<T>(ruta: string, { metodo = "GET", consulta, formulario
   if (formulario) {
     headers["Content-Type"] = "application/x-www-form-urlencoded";
     body = new URLSearchParams(formulario).toString();
+  } else if (json !== undefined) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(json);
   }
 
   let respuesta: Response;
@@ -72,4 +76,15 @@ export const httpClient: ApiClient = {
   aniosDisponibles: () => solicitar("/metricas/anios"),
   metricasResumen: (f) => solicitar("/metricas/resumen", { consulta: { ...f } }),
   metricasPorPeriodo: (f) => solicitar("/metricas/por-periodo", { consulta: { ...f } }),
+  metricasDistribucion: (f) => solicitar("/metricas/distribucion", { consulta: { ...f } }),
+  opcionesFiltro: () => solicitar("/metricas/opciones"),
+  estadoDrive: () => solicitar("/google/estado"),
+  autorizarDrive: () => solicitar("/google/autorizar", { metodo: "POST" }),
+  definirCarpetaDrive: (carpeta) => solicitar("/google/carpeta", { metodo: "PUT", json: { carpeta } }),
+  desconectarDrive: () => solicitar("/google/conexion", { metodo: "DELETE" }),
+  sincronizarDrive: (reintentar, reprocesar = false) =>
+    solicitar("/ingesta/sincronizar", { metodo: "POST", consulta: { reintentar_errores: String(reintentar), reprocesar: String(reprocesar) } }),
+  progresoSincronizacion: () => solicitar("/ingesta/progreso"),
+  cancelarSincronizacion: () => solicitar("/ingesta/cancelar", { metodo: "POST" }),
+  listarDocumentos: (f) => solicitar("/documentos", { consulta: { ...f } }),
 };

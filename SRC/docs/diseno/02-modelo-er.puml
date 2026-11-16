@@ -2,69 +2,117 @@
 !include _estilo.iuml
 hide circle
 skinparam linetype ortho
-title Cotiza+ · Modelo entidad-relación (PostgreSQL)
+title Cotiza+ · Modelo entidad-relación (PostgreSQL, multiempresa)
 
-entity "usuario" as usuario {
+entity "empresas" as empresa {
   * id : serial <<PK>>
   --
-  * email : varchar(120) <<UK>>
-  * nombre : varchar(120)
-  * hash_password : varchar(255)
+  * nombre : varchar(255)
+    rut : varchar(20) <<UK, nulo>>
+    google_drive_folder_id : varchar(255)
+  * activa : boolean
+  * fecha_creacion : timestamptz
+}
+
+entity "usuarios" as usuario {
+  * id : serial <<PK>>
+  --
+  * empresa_id : int <<FK>>
+  * email : varchar(255) <<UK>>
+  * nombre : varchar(255)
+  * password_hash : varchar(255)  (bcrypt)
   * activo : boolean
-  * creado_en : timestamptz
+  * fecha_creacion : timestamptz
 }
 
-entity "cliente" as cliente {
+entity "integraciones_google_drive" as integracion {
   * id : serial <<PK>>
   --
-  * nombre : varchar(200)
-    rut : varchar(12) <<UK, nulo>>
-  * creado_en : timestamptz
+  * empresa_id : int <<FK, UK>>
+  * refresh_token_encrypted : text  (Fernet)
+  * activa : boolean
+  * fecha_conexion : timestamptz
 }
 
-entity "documento" as documento {
-  * id : serial <<PK>>
+entity "oauth_estados" as oauth {
+  * state : varchar(128) <<PK>>
   --
-  * drive_file_id : varchar(100) <<UK>>
-  * nombre_archivo : varchar(255)
-    url_drive : text
-  * estado : varchar(12)  (procesado | error | duplicado)
-    metodo_extraccion : varchar(8)  (reglas | ia)
-    mensaje_error : text
-  * procesado_en : timestamptz
+  * empresa_id : int <<FK>>
+  * code_verifier : varchar(128)  (PKCE)
+  * fecha_creacion : timestamptz
 }
 
-entity "cotizacion" as cotizacion {
+entity "clientes" as cliente {
   * id : serial <<PK>>
   --
-  * numero : varchar(30) <<UK>>
-  * fecha : date  (emisión)
+  * empresa_id : int <<FK>>
+  * nombre : varchar(255)
+    rut : varchar(20)
+    email : varchar(255)
+  ..
+  UK (empresa_id, rut)
+}
+
+entity "cotizaciones" as cotizacion {
+  * id : serial <<PK>>
+  --
+  * empresa_id : int <<FK>>
+  * numero : varchar(100)
   * cliente_id : int <<FK>>
-  * documento_id : int <<FK, UK>>
-  * monto_neto : integer  (CLP)
-  * iva : integer
-  * total : integer
-  * creado_en : timestamptz
+  * fecha : date  (emisión)
+  * subtotal : numeric(15,2)  (neto; API: monto_neto)
+  * iva : numeric(15,2)
+  * total : numeric(15,2)
+  * moneda : varchar(10)  (CLP)
+  * fecha_creacion : timestamptz
+  ..
+  UK (empresa_id, numero)
 }
 
-entity "item_cotizacion" as item {
+entity "items_cotizacion" as item {
   * id : serial <<PK>>
   --
   * cotizacion_id : int <<FK>>
-  * linea : smallint
+  * linea : int
+    codigo : varchar(100)
   * descripcion : text
-  * cantidad : numeric(10,2)
-    unidad : varchar(10)
-  * precio_unitario : integer
-  * subtotal : integer
+  * cantidad : numeric(12,2)
+    unidad : varchar(20)
+    precio_unitario : numeric(15,2)
+    total : numeric(15,2)  (API: subtotal)
 }
 
-cliente ||--o{ cotizacion : "recibe"
-cotizacion ||--|{ item : "contiene"
-documento ||--o| cotizacion : "origina"
+entity "documentos" as documento {
+  * id : serial <<PK>>
+  --
+  * empresa_id : int <<FK>>
+    cotizacion_id : int <<FK>>
+  * google_drive_id : varchar(255)
+  * nombre_archivo : varchar(255)
+    hash_archivo : varchar(64)  (SHA-256)
+  * estado : varchar(30)  (pendiente | procesado | duplicado | error)
+    metodo_extraccion : varchar(20)  (reglas | ia)
+    error : text
+  * fecha_creacion : timestamptz
+    fecha_procesamiento : timestamptz
+  ..
+  UK (empresa_id, google_drive_id)
+  UK (empresa_id, hash_archivo)
+}
 
-note bottom of usuario
-  Sin relación con las cotizaciones:
-  solo controla el acceso a la API.
+empresa ||--o{ usuario : "tiene"
+empresa ||--o| integracion : "conecta"
+empresa ||--o{ oauth : "autoriza"
+empresa ||--o{ cliente : "atiende"
+empresa ||--o{ cotizacion : "emite"
+empresa ||--o{ documento : "recibe"
+cliente ||--o{ cotizacion : "recibe"
+cotizacion ||--o{ item : "contiene"
+cotizacion |o--o{ documento : "origina"
+
+note bottom of documento
+  Un PDF duplicado (mismo hash o número
+  ya registrado) queda como "duplicado"
+  apuntando a la cotización existente.
 end note
 @enduml

@@ -11,14 +11,15 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-Por defecto usa **datos simulados**, porque la API todavía no está publicada. Credenciales de prueba: `demo@cotiza.test` / `demo1234`.
+Por defecto consume la **API real de FastAPI** en `VITE_API_BASE_URL` (ver `.env.example`). Con el backend corriendo y `python -m app.cli seed-demo` cargado, las credenciales de prueba son `demo@cotiza.test` / `demo1234`.
 
-Para conectarse a la API real de FastAPI, copiar `.env.example` a `.env.local` y definir:
+Para usar **datos simulados** sin backend, crear `.env.local` con:
 
 ```
-VITE_API_MODE=http
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_API_MODE=mock
 ```
+
+Las pruebas (`npm test`) y la demo de GitHub Pages (`.env.demo`) usan siempre el modo simulado.
 
 | Script | Uso |
 | --- | --- |

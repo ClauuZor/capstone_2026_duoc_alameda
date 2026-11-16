@@ -70,33 +70,48 @@ Seguridad transversal: autenticación, autorización, validación de datos y pro
 
 ### Backend
 
+Requisitos: Python 3.12 o superior y PostgreSQL.
+
 ```bash
 cd SRC/backend
 python -m venv venv
 source venv/bin/activate        # en Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+cp .env.example .env            # completar DATABASE_URL, SECRET_KEY y ENCRYPTION_KEY
+alembic upgrade head            # crea o actualiza las tablas
+python -m app.cli seed-demo     # opcional: empresa y 150 cotizaciones de ejemplo
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 pytest
 ```
 
-Crear un archivo `.env` en `SRC/backend/` con, al menos:
+Las variables están explicadas en [`SRC/backend/.env.example`](SRC/backend/.env.example). Swagger queda en http://127.0.0.1:8000/docs (botón **Authorize** con el correo y la contraseña).
 
-```
-DATABASE_URL=postgresql://usuario:contraseña@localhost:5432/cotiza_plus
-GOOGLE_DRIVE_CREDENTIALS=ruta/a/credenciales.json
-SECRET_KEY=cambia_esto_en_produccion
-```
+Administración por consola (`python -m app.cli --help`):
+
+| Comando | Para qué |
+| --- | --- |
+| `crear-empresa --nombre ... --rut ... --carpeta <folder_id>` | Registra una empresa y su carpeta de Google Drive. |
+| `crear-usuario --empresa-id 1 --email ... --nombre ...` | Crea un usuario de la aplicación web (pide la contraseña). |
+| `carpeta --empresa-id 1 --carpeta <folder_id>` | Cambia la carpeta de Drive de una empresa. |
+| `sincronizar --empresa-id 1` | Procesa los PDF nuevos de Drive (lo mismo que `POST /api/v1/ingesta/sincronizar`). |
+| `procesar-pdf --empresa-id 1 archivo.pdf` | Procesa PDF locales, útil para ajustar las reglas de extracción. |
+| `seed-demo` | Crea la empresa demo con el usuario `demo@cotiza.test` / `demo1234`. |
+
+**Conectar Google Drive:** con sesión iniciada, `POST /api/v1/google/autorizar` (desde Swagger) entrega una URL; al abrirla y aceptar, Google vuelve a `GOOGLE_REDIRECT_URI` y el token queda guardado cifrado. Luego `POST /api/v1/ingesta/sincronizar` procesa la carpeta.
 
 ### Frontend
 
 ```bash
 cd SRC/frontend
 npm install
-npm run dev
+cp .env.example .env.local      # VITE_API_MODE=http apunta al backend local
+npm run dev                     # http://localhost:5173
 npm test
 ```
 
-Configuración de la conexión con la API en [`SRC/frontend/README.md`](SRC/frontend/README.md).
+Con el backend corriendo y `seed-demo` cargado, se entra con `demo@cotiza.test` / `demo1234`. Para usar datos simulados sin backend, `VITE_API_MODE=mock`. Más detalles en [`SRC/frontend/README.md`](SRC/frontend/README.md).
+
+Para comprobar que el backend cumple el contrato: `npm run verificar:api` (en `SRC/frontend`, con el backend corriendo).
 
 ## Integrantes del equipo y roles
 
@@ -109,7 +124,7 @@ Configuración de la conexión con la API en [`SRC/frontend/README.md`](SRC/fron
 
 El proyecto se desarrolla con **Scrum**, de forma iterativa e incremental, en sprints de dos semanas dentro de la planificación de 18 semanas de la asignatura. Cada incremento se valida con pruebas antes de considerarse terminado.
 
-Documentación ágil en [`Fase 2/Evidencias Proyecto (version Agil)`](<Fase 2/Evidencias Proyecto (version Agil)>):
+Documentación ágil en [`Fase 2/Evidencia proyecto`](<Fase 2/Evidencia proyecto>):
 
 - Documento 01 · Product Vision
 - Documento 02 · Product Backlog
@@ -127,7 +142,9 @@ Google Drive  →  Python (procesamiento)  →  FastAPI (servicios REST)  →  P
 
 ![Diagrama de componentes](SRC/docs/diseno/componentes.png)
 
-Los PDF se obtienen desde Google Drive y se procesan con Python, priorizando reglas de extracción y usando IA como respaldo. La información normalizada se almacena en PostgreSQL y se expone mediante una API REST en FastAPI, que consume la aplicación web en React. La seguridad (autenticación, autorización y validación de datos) es transversal a todas las capas.
+Los PDF se obtienen desde Google Drive y se procesan con Python, priorizando reglas de extracción (el respaldo con IA está pendiente). La información normalizada se almacena en PostgreSQL y se expone mediante una API REST en FastAPI, que consume la aplicación web en React. La seguridad (autenticación, autorización y validación de datos) es transversal a todas las capas.
+
+El sistema es **multiempresa**: cada empresa conecta su propio Google Drive mediante OAuth 2.0 (solo lectura, token cifrado en la base) y cada usuario ve únicamente los datos de su empresa, que el backend toma del JWT. Los diagramas actualizados están en [`SRC/docs/diseno`](SRC/docs/diseno) y el contrato de la API en [`SRC/docs/contrato-api.md`](SRC/docs/contrato-api.md).
 
 ## Estructura del repositorio
 

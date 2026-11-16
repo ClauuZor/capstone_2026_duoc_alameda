@@ -1,11 +1,15 @@
 # Contrato de API — Cotiza+ (frontend ↔ backend)
 
-**Estado:** propuesta del frontend para el acuerdo "Coordinar la estructura de datos entre frontend y backend" (acta del 08/10/2026, plazo S8). Pendiente de revisión y aprobación del backend.
-**Fuente de verdad en código:** `SRC/frontend/src/api/types.ts`. Si este documento y ese archivo difieren, se corrigen ambos en el mismo commit.
+**Estado:** implementado en FastAPI (`SRC/backend/app/api`) y verificado el 15/11/2026 con `npm run verificar:api` (31 de 31 verificaciones correctas).
+**Fuente de verdad en código:** `SRC/frontend/src/api/types.ts` (frontend) y `SRC/backend/app/schemas/` (backend). Si difieren de este documento, se corrigen los tres en el mismo commit.
 
-El contrato cubre **solo lo que exige el PMV** (Épica 002: consulta y visualización segura). Son 8 endpoints. Todo lo que no aparece aquí queda fuera del alcance del semestre.
+El contrato cubre **solo lo que exige el PMV** (Épica 002: consulta y visualización segura). Son 8 endpoints. La sección 2.1 agrega los endpoints de la Épica 001 (conexión con Drive e ingesta), que usa la sección "Google Drive" del frontend (`/drive`).
 
-Mientras el backend no esté publicado, el frontend usa un cliente simulado que respeta exactamente estas reglas (`VITE_API_MODE=mock`). Para conectarse a FastAPI basta con `VITE_API_MODE=http`.
+El frontend usa la API real por defecto (`VITE_API_MODE=http`). El cliente simulado (`VITE_API_MODE=mock`) se mantiene para las pruebas y la demo de GitHub Pages.
+
+### Multiempresa
+
+Cada usuario pertenece a **una empresa**. El JWT lleva el `empresa_id` (claim `emp`) y el backend filtra todas las consultas por esa empresa: ningún endpoint recibe el id de empresa por parámetro. Una cotización de otra empresa responde 404, igual que una inexistente. Por eso el contrato del frontend no cambia respecto de la versión de una sola empresa.
 
 ## 1. Convenciones
 
@@ -14,7 +18,7 @@ Mientras el backend no esté publicado, el frontend usa un cliente simulado que 
 | URL base | `/api/v1` (en el frontend, `VITE_API_BASE_URL`). |
 | Formato | JSON en UTF-8, campos en `snake_case`. |
 | Autenticación | `Authorization: Bearer <token>` en todos los endpoints excepto `POST /auth/login`. Sin token válido, la API responde 401. |
-| Token | JWT con `sub` (email) y **`exp` obligatorio**. El frontend trata como inválido un token sin `exp`. Duración sugerida: 30 a 60 minutos. |
+| Token | JWT HS256 con `sub` (email), `uid` (usuario), `emp` (empresa) y **`exp` obligatorio**. El frontend trata como inválido un token sin `exp`. Duración: `ACCESS_TOKEN_EXPIRE_MINUTES` (60 por defecto). |
 | Montos | Pesos chilenos como **enteros** (`int`). No usar `Decimal` en los esquemas de respuesta: Pydantic v2 lo serializa como string (`"1234567"`). Puede ser `NUMERIC` en PostgreSQL y convertirse a `int` en el esquema. |
 | Fechas | `fecha` de la cotización como `"YYYY-MM-DD"`: fecha de **emisión** impresa en el PDF, no la de procesamiento. |
 | Paginación | `page` (desde 1) y `page_size` (máx. 100). Respuesta `{ items, total, page, page_size }`. |
@@ -117,7 +121,48 @@ Se calculan **en el backend sobre el conjunto filtrado completo**, nunca en el f
 | `monto_neto_total` | Suma de `monto_neto` (sin IVA). Es monto **cotizado**, no vendido. |
 | Monto promedio | No lo entrega la API: el frontend lo calcula como `monto_neto_total / total_cotizaciones`. |
 
+### Atributos comerciales, filtros y métricas adicionales
+
+Además de lo anterior, cada cotización expone atributos extraídos del PDF (todos pueden ser `null` si el formato no los trae):
+
+| Campo | Dónde | Ejemplo |
+| --- | --- | --- |
+| `tipo_cliente`, `comuna`, `material`, `color`, `vidrio`, `vendedor` | listado y detalle | `"PARTICULAR"`, `"Providencia"`, `"PVC"`, `"Nogal"`, `"Termopanel"`, `"Ana Pérez S."` |
+| `descuento` (int) | listado y detalle | `40000` |
+| `proyecto`, `direccion`, `fecha_vencimiento`, `cliente_telefono`, `cliente_email`, `subtotal_bruto` | detalle | |
+| ítems: `denominacion`, `ancho_m`, `alto_m`, `m2`, `categoria`, `es_servicio` | detalle | `"V01"`, `1.5`, `1.9`, `2.85`, `"Corredera"`, `false` |
+
+`GET /cotizaciones` y todos los `/metricas/*` aceptan además los filtros `material`, `color`, `vidrio`, `comuna`, `vendedor` y `tipo_cliente` (valor exacto). El listado acepta también `monto_min` y `monto_max` (neto, CLP), y `q` busca también en el proyecto.
+
+| Endpoint | Respuesta |
+| --- | --- |
+| `GET /metricas/resumen` | Agrega `monto_total` (con IVA), `descuento_total`, `cotizaciones_con_descuento`, `m2_cotizados` y `cotizaciones_con_instalacion`. |
+| `GET /metricas/distribucion?dimension=&limite=10` | `[{ clave, cantidad, monto_neto }]` de mayor a menor monto. `dimension`: `material`, `color`, `vidrio`, `comuna`, `vendedor`, `tipo_cliente`, `cliente` o `producto` (ítems por categoría, sin servicios; `cantidad` = unidades). |
+| `GET /metricas/opciones` | `{ material: [], color: [], vidrio: [], comuna: [], vendedor: [], tipo_cliente: [] }`: valores existentes, del más al menos frecuente. |
+
+### 2.1 Conexión con Google Drive e ingesta (Épica 001)
+
+Todos exigen token, salvo el callback, que lo llama el navegador al volver de Google.
+
+| Endpoint | Descripción |
+| --- | --- |
+| `GET /google/estado` | `{ google_configurado, conectado, carpeta_configurada, carpeta_id, fecha_conexion }` de la empresa del usuario. |
+| `PUT /google/carpeta` | JSON `{ carpeta }`: ID o enlace de la carpeta (`…/folders/<id>`). Devuelve el estado. 422 si no es válido. |
+| `POST /google/autorizar` | `{ authorization_url }`: URL de consentimiento de Google (solo lectura de Drive). El `state` y el `code_verifier` (PKCE) se guardan en `oauth_estados`, son de un solo uso y vencen a los 15 minutos. |
+| `GET /google/callback` | Fuera de `/api/v1` (es la `GOOGLE_REDIRECT_URI` registrada en Google Cloud). Guarda el refresh token **cifrado** y redirige a `FRONTEND_URL/drive?drive=conectado` o `?drive=error&motivo=<invalido|vencido|cancelado|rechazado|sin_refresh|no_configurado>`. |
+| `DELETE /google/conexion` | Desconecta Drive (204). |
+| `POST /ingesta/sincronizar?reintentar_errores=false&reprocesar=false` | `reprocesar=true` vuelve a leer todos los PDF y actualiza las cotizaciones ya importadas (mismos id). Inicia **en segundo plano** el procesamiento de los PDF nuevos de la carpeta (202). Responde el avance. 409 si Drive no está conectado, falta la carpeta o ya hay una en curso. |
+| `GET /ingesta/progreso` | `{ estado (inactivo \| en_curso \| terminado \| cancelado \| fallido), encontrados, total, revisados, procesados, duplicados, errores, omitidos, mensaje, inicio, fin }`. El frontend lo consulta cada 1,5 s mientras está en curso. |
+| `POST /ingesta/cancelar` | Deja de descargar PDF nuevos; los que estaban en curso se guardan. 409 si no hay una en curso. |
+| `GET /documentos?estado=&page=&page_size=` | `Pagina` de documentos detectados con `estado` (`procesado`, `duplicado`, `error`), `error`, `metodo_extraccion`, `cotizacion_id` y `url_drive`. |
+
+Además, `INGESTA_INTERVALO_MINUTOS > 0` activa la sincronización automática de todas las empresas conectadas.
+
+Rendimiento: la descarga desde Drive es lo más lento (~0,6 s por PDF), así que se descargan `INGESTA_DESCARGAS_PARALELAS` (8 por defecto) a la vez, con reintentos ante cortes de red. Medido con 5.350 PDF reales: ~7 PDF/s, unos 13 minutos la primera vez; las siguientes solo procesan los nuevos. El avance vive en memoria del servidor: si se reinicia, la sincronización se corta, pero lo ya guardado se mantiene y la siguiente continúa desde ahí.
+
 ## 3. Esqueleto orientativo para FastAPI
+
+> Referencia histórica de la propuesta. La implementación real está en `SRC/backend/app/api/`.
 
 ```python
 from fastapi import Depends, FastAPI, Query
@@ -160,9 +205,10 @@ def listar(
 
 ## 4. Para cerrar el contrato
 
-- [ ] Backend confirma nombres de campos y tipos.
-- [ ] Montos expuestos como `int`.
-- [ ] El JWT incluye `exp`.
-- [ ] Todos los endpoints salvo `/auth/login` exigen token.
-- [ ] CORS habilitado para el origen del frontend.
-- [ ] Swagger (`/docs`) coincide con este documento antes de la integración (S12).
+- [x] Backend confirma nombres de campos y tipos.
+- [x] Montos expuestos como `int`.
+- [x] El JWT incluye `exp`.
+- [x] Todos los endpoints salvo `/auth/login` (y el callback de Google) exigen token.
+- [x] CORS habilitado para el origen del frontend (`CORS_ORIGINS`).
+- [x] Swagger (`/docs`) coincide con este documento.
+- [ ] Búsqueda sin distinguir tildes (`unaccent`): hoy usa `ILIKE`, que ignora mayúsculas pero no tildes.

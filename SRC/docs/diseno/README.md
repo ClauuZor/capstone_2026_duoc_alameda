@@ -26,4 +26,4 @@ java -jar plantuml.jar -tpng *.puml
 
 También se puede usar la extensión "PlantUML" de VS Code (vista previa con Alt+D y exportación desde la paleta de comandos).
 
-El modelo E-R y los diagramas de clases son una propuesta derivada del contrato de API. Cuando el backend implemente su modelo, estos diagramas deben actualizarse para reflejarlo.
+Los diagramas reflejan el backend implementado (`SRC/backend/app`): modelo **multiempresa** (cada usuario pertenece a una empresa y solo ve sus datos) y conexión con Google Drive mediante **OAuth 2.0 por empresa** (no cuenta de servicio). Las fuentes `.puml` se actualizaron el 15/11/2026; las imágenes `.png` deben regenerarse con los comandos de arriba antes de insertarlas en el Documento 05.

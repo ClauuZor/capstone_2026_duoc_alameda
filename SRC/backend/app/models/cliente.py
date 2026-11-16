@@ -44,6 +44,11 @@ class Cliente(Base):
         nullable=True
     )
 
+    telefono: Mapped[Optional[str]] = mapped_column(
+        String(30),
+        nullable=True
+    )
+
     empresa: Mapped["Empresa"] = relationship(
         "Empresa",
         back_populates="clientes"
