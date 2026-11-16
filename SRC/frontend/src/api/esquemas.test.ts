@@ -13,5 +13,7 @@ describe("esquemas del contrato", () => {
     expectTypeOf<z.infer<typeof E.PaginaCotizaciones>>().toEqualTypeOf<T.Pagina<T.CotizacionResumen>>();
     expectTypeOf<z.infer<typeof E.MetricasResumen>>().toEqualTypeOf<T.MetricasResumen>();
     expectTypeOf<z.infer<typeof E.MetricaPeriodo>>().toEqualTypeOf<T.MetricaPeriodo>();
+    expectTypeOf<z.infer<typeof E.MetricaDistribucion>>().toEqualTypeOf<T.MetricaDistribucion>();
+    expectTypeOf<z.infer<typeof E.OpcionesFiltro>>().toEqualTypeOf<T.OpcionesFiltro>();
   });
 });

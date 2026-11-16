@@ -9,6 +9,7 @@ import { config } from "./config";
 import { CotizacionDetallePage } from "./pages/CotizacionDetallePage";
 import { CotizacionesPage } from "./pages/CotizacionesPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { DrivePage } from "./pages/DrivePage";
 import { LoginPage } from "./pages/LoginPage";
 import { NoEncontradaPage } from "./pages/NoEncontradaPage";
 
@@ -26,6 +27,7 @@ export const rutas: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: "cotizaciones", element: <CotizacionesPage /> },
       { path: "cotizaciones/:id", element: <CotizacionDetallePage /> },
+      { path: "drive", element: <DrivePage /> },
       { path: "*", element: <NoEncontradaPage /> },
     ],
   },

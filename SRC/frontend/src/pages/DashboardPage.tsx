@@ -5,7 +5,9 @@ import { Campo, Encabezado, Selector } from "../components/Controles";
 import { EstadoCarga, EstadoError, EstadoVacio } from "../components/Estados";
 import { useAnios, useClientes, useMetricasPeriodo, useMetricasResumen } from "../hooks/consultas";
 import { useTitulo } from "../hooks/useTitulo";
-import { escribirFiltros, escribirFiltrosResumen, leerFiltrosResumen } from "../lib/filtros";
+import { Distribucion } from "../components/Distribucion";
+import { FiltrosAtributos } from "../components/FiltrosAtributos";
+import { escribirFiltros, escribirFiltrosResumen, hayFiltrosAtributo, leerFiltrosResumen } from "../lib/filtros";
 import { formatCLP, formatCLPCorto, formatNumero, formatPeriodo, plural } from "../lib/format";
 import { completarMeses, montoPromedio } from "../lib/metricas";
 
@@ -74,6 +76,13 @@ export function DashboardPage() {
         </Campo>
       </section>
 
+      <details className="-mt-3 mb-6 rounded-lg border border-borde bg-superficie" open={hayFiltrosAtributo(filtros)}>
+        <summary className="cursor-pointer px-4 py-2.5 font-medium select-none">Filtrar por material, vidrio, comuna o vendedor</summary>
+        <section aria-label="Filtros por atributo" className="grid gap-3 border-t border-borde p-4 sm:grid-cols-3 lg:grid-cols-6">
+          <FiltrosAtributos prefijo="res" valores={filtros} alCambiar={actualizar} />
+        </section>
+      </details>
+
       {resumen.isError ? (
         <EstadoError mensaje={resumen.error.message} alReintentar={() => resumen.refetch()} />
       ) : !resumen.data ? (
@@ -99,6 +108,24 @@ export function DashboardPage() {
                 etiqueta="Monto promedio"
                 valor={formatCLPCorto(montoPromedio(resumen.data.monto_neto_total, resumen.data.total_cotizaciones))}
                 detalle="por cotización"
+              />
+            </dl>
+            <dl className="grid grid-cols-2 border-b border-borde lg:grid-cols-4">
+              <Cifra etiqueta="Total con IVA" valor={formatCLPCorto(resumen.data.monto_total)} detalle={formatCLP(resumen.data.monto_total)} />
+              <Cifra
+                etiqueta="Superficie cotizada"
+                valor={`${formatNumero(Math.round(resumen.data.m2_cotizados))} m²`}
+                detalle={resumen.data.m2_cotizados > 0 ? `${formatCLP(Math.round(resumen.data.monto_neto_total / resumen.data.m2_cotizados))} por m² aprox.` : "ítems con medidas"}
+              />
+              <Cifra
+                etiqueta="Con instalación"
+                valor={`${porcentaje(resumen.data.cotizaciones_con_instalacion, resumen.data.total_cotizaciones)} %`}
+                detalle={plural(resumen.data.cotizaciones_con_instalacion, "cotización", "cotizaciones")}
+              />
+              <Cifra
+                etiqueta="Con descuento"
+                valor={`${porcentaje(resumen.data.cotizaciones_con_descuento, resumen.data.total_cotizaciones)} %`}
+                detalle={resumen.data.descuento_total > 0 ? `${formatCLPCorto(resumen.data.descuento_total)} descontados` : "sin descuentos"}
               />
             </dl>
             <Link
@@ -154,8 +181,31 @@ export function DashboardPage() {
               </>
             )}
           </section>
+
+          <div className="mt-10">
+            <h2 className="text-lg font-semibold">¿Qué se cotiza?</h2>
+            <p className="text-sm text-texto-suave">Monto neto {alcance} y cantidad de cotizaciones. Elige una fila para ver esas cotizaciones.</p>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Distribucion titulo="Por material" dimension="material" filtros={filtros} />
+              <Distribucion titulo="Por tipo de vidrio" dimension="vidrio" filtros={filtros} />
+              <Distribucion titulo="Por color" dimension="color" filtros={filtros} />
+              <Distribucion titulo="Productos más cotizados" dimension="producto" filtros={filtros} unidad="unidad" unidadPlural="unidades" />
+            </div>
+          </div>
+
+          <div className="mt-10">
+            <h2 className="text-lg font-semibold">¿A quién y dónde?</h2>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Distribucion titulo="Clientes con más monto cotizado" dimension="cliente" filtros={filtros} limite={10} />
+              <Distribucion titulo="Comunas" dimension="comuna" filtros={filtros} limite={10} />
+              <Distribucion titulo="Por vendedor" dimension="vendedor" filtros={filtros} />
+              <Distribucion titulo="Tipo de cliente" dimension="tipo_cliente" filtros={filtros} />
+            </div>
+          </div>
         </>
       )}
     </>
   );
 }
+
+const porcentaje = (parte: number, total: number) => (total > 0 ? Math.round((parte / total) * 100) : 0);

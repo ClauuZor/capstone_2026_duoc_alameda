@@ -132,6 +132,13 @@ function generarItems(): ItemCotizacion[] {
       unidad: p.unidad,
       precio_unitario,
       subtotal: Math.round(cantidad * precio_unitario),
+      // Se completan en enriquecer().
+      denominacion: null,
+      ancho_m: null,
+      alto_m: null,
+      m2: null,
+      categoria: null,
+      es_servicio: false,
     };
   });
 }
@@ -182,9 +189,79 @@ export const cotizaciones: CotizacionDetalle[] = [];
             nombre_archivo: `Cotizacion_${numero}_${slug(cliente.nombre)}.pdf`,
             url_drive: `https://drive.google.com/file/d/${drive_file_id}/view`,
           },
+          // Se completan en enriquecer().
+          tipo_cliente: null,
+          comuna: null,
+          material: null,
+          color: null,
+          vidrio: null,
+          vendedor: null,
+          descuento: 0,
+          subtotal_bruto: monto_neto,
+          proyecto: null,
+          direccion: null,
+          fecha_vencimiento: null,
+          cliente_telefono: null,
+          cliente_email: null,
         });
         id++;
       }
+    }
+  }
+})();
+
+/*
+ * Atributos comerciales (material, color, comuna…). Usan un generador aparte para no alterar
+ * la secuencia anterior: los datos y totales que verifican las pruebas siguen siendo los mismos.
+ */
+(function enriquecer() {
+  const azar2 = mulberry32(7301);
+  const elegir2 = <T,>(lista: readonly T[]): T => lista[Math.floor(azar2() * lista.length)] as T;
+  const COMUNAS = ["Providencia", "Las Condes", "Ñuñoa", "La Florida", "Maipú", "Santiago", "Puente Alto", "Vitacura", "Quinta Normal", "San Miguel"];
+  const VENDEDORES = ["Ana Pérez S.", "Luis Soto R.", "Marta Díaz V."];
+  const MATERIALES = [["PVC", ["Blanco", "Nogal", "Antracita"]], ["Aluminio", ["Titanio", "Blanco", "Negro", "Mate"]], ["Solo vidrio", [null]]] as const;
+  const VIDRIOS = ["Termopanel", "Monolítico", "Templado", "Laminado"];
+  const CATEGORIAS: [RegExp, string, boolean][] = [
+    [/corredera/i, "Corredera", false],
+    [/proyectante/i, "Proyectante", false],
+    [/puerta/i, "Puerta", false],
+    [/shower/i, "Shower door", false],
+    [/espejo/i, "Espejo", false],
+    [/baranda/i, "Baranda", false],
+    [/mampara/i, "Mampara", false],
+    [/fachada/i, "Fachada", false],
+    [/cristal|termopanel/i, "Vidrio", false],
+    [/instalaci/i, "Instalación", true],
+    [/retiro/i, "Desinstalación", true],
+    [/flete/i, "Traslado", true],
+  ];
+  const tipoPorCliente = new Map<string, string>(NOMBRES_CLIENTES.map(([nombre, empresa]) => [nombre, empresa ? "EMPRESA" : "PARTICULAR"]));
+  for (const c of cotizaciones) {
+    const [material, colores] = elegir2(MATERIALES);
+    c.tipo_cliente = tipoPorCliente.get(c.cliente.nombre) ?? null;
+    c.comuna = elegir2(COMUNAS);
+    c.material = material;
+    c.color = elegir2(colores);
+    c.vidrio = elegir2(VIDRIOS);
+    c.vendedor = elegir2(VENDEDORES);
+    c.descuento = 0;
+    c.subtotal_bruto = c.monto_neto;
+    c.proyecto = [material, c.color, c.vidrio].filter(Boolean).join(", ").toUpperCase();
+    c.direccion = null;
+    const [a, m, d] = c.fecha.split("-").map(Number) as [number, number, number];
+    const venc = new Date(Date.UTC(a, m - 1, d + 10));
+    c.fecha_vencimiento = venc.toISOString().slice(0, 10);
+    c.cliente_telefono = `9${String(Math.floor(azar2() * 1e8)).padStart(8, "0")}`;
+    c.cliente_email = null;
+    for (const it of c.items) {
+      const [, categoria, es_servicio] = CATEGORIAS.find(([re]) => re.test(it.descripcion)) ?? [null, null, false];
+      const medida = it.descripcion.match(/(\d{3,4})x(\d{3,4}) mm/);
+      it.categoria = categoria;
+      it.es_servicio = es_servicio;
+      it.denominacion = null;
+      it.ancho_m = medida ? Number(medida[1]) / 1000 : null;
+      it.alto_m = medida ? Number(medida[2]) / 1000 : null;
+      it.m2 = medida ? Math.round((Number(medida[1]) / 1000) * (Number(medida[2]) / 1000) * it.cantidad * 100) / 100 : it.unidad === "m²" ? it.cantidad : null;
     }
   }
 })();

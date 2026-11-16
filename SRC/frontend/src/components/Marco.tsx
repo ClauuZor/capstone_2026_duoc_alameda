@@ -25,6 +25,9 @@ export function Marco() {
             <NavLink to="/cotizaciones" className={enlace}>
               Cotizaciones
             </NavLink>
+            <NavLink to="/drive" className={enlace}>
+              Google Drive
+            </NavLink>
           </nav>
           <div className="mt-auto hidden border-t border-borde pt-4 md:block">
             <p className="truncate font-medium">{usuario?.nombre}</p>

@@ -5,6 +5,30 @@ import { useCotizacion } from "../hooks/consultas";
 import { useTitulo } from "../hooks/useTitulo";
 import { formatCLP, formatFecha, formatNumero } from "../lib/format";
 
+const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+/** Bloque de datos etiqueta/valor; las filas sin valor no se muestran. */
+function Ficha({ titulo, filas }: { titulo: string; filas: [string, string | null | undefined][] }) {
+  const visibles = filas.filter(([, v]) => v);
+  return (
+    <div className="rounded-lg border border-borde bg-superficie p-4">
+      <h2 className="mb-2 font-semibold">{titulo}</h2>
+      {visibles.length === 0 ? (
+        <p className="text-sm text-texto-suave">Sin datos en el PDF.</p>
+      ) : (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          {visibles.map(([etiqueta, valor]) => (
+            <div key={etiqueta} className="contents">
+              <dt className="text-texto-suave">{etiqueta}</dt>
+              <dd className="min-w-0 break-words">{valor}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 export function CotizacionDetallePage() {
   const { id } = useParams();
   const ubicacion = useLocation();
@@ -27,6 +51,10 @@ export function CotizacionDetallePage() {
   if (!consulta.data) return <EstadoCarga mensaje="Cargando cotización…" />;
 
   const c = consulta.data;
+  const m2Total = c.items.reduce((s, it) => s + (it.es_servicio ? 0 : (it.m2 ?? 0)), 0);
+  const hayMedidas = c.items.some((it) => it.ancho_m !== null);
+  const hayDenominacion = c.items.some((it) => it.denominacion);
+  const columnasAntesDelSubtotal = 4 + (hayDenominacion ? 1 : 0) + (hayMedidas ? 1 : 0);
 
   return (
     <>
@@ -50,8 +78,42 @@ export function CotizacionDetallePage() {
         }
       />
 
+      <section aria-label="Datos de la cotización" className="mb-8 grid gap-4 md:grid-cols-3">
+        <Ficha
+          titulo="Cliente"
+          filas={[
+            ["Nombre", c.cliente.nombre],
+            ["RUT", c.cliente.rut],
+            ["Tipo", c.tipo_cliente && capitalizar(c.tipo_cliente)],
+            ["Teléfono", c.cliente_telefono],
+            ["Correo", c.cliente_email],
+          ]}
+        />
+        <Ficha
+          titulo="Proyecto"
+          filas={[
+            ["Descripción", c.proyecto],
+            ["Material", c.material],
+            ["Color", c.color],
+            ["Vidrio", c.vidrio],
+            ["Comuna", c.comuna],
+            ["Dirección", c.direccion],
+            ["Superficie", m2Total > 0 ? `${formatNumero(Math.round(m2Total * 100) / 100)} m²` : null],
+          ]}
+        />
+        <Ficha
+          titulo="Condiciones"
+          filas={[
+            ["Emisión", formatFecha(c.fecha)],
+            ["Vencimiento", c.fecha_vencimiento && formatFecha(c.fecha_vencimiento)],
+            ["Vendedor", c.vendedor],
+            ["Descuento", c.descuento > 0 ? `${formatCLP(c.descuento)} (${Math.round((c.descuento / c.subtotal_bruto) * 1000) / 10} %)` : "Sin descuento"],
+          ]}
+        />
+      </section>
+
       <section aria-labelledby="titulo-items">
-        <h2 id="titulo-items" className="sr-only">
+        <h2 id="titulo-items" className="mb-3 text-lg font-semibold">
           Ítems
         </h2>
         <div className="overflow-x-auto rounded-lg border border-borde bg-superficie">
@@ -59,7 +121,9 @@ export function CotizacionDetallePage() {
             <thead className="border-b border-borde text-sm text-texto-suave">
               <tr>
                 <th scope="col" className="w-12 px-4 py-2.5 font-medium">#</th>
+                {hayDenominacion && <th scope="col" className="px-4 py-2.5 font-medium">Código</th>}
                 <th scope="col" className="px-4 py-2.5 font-medium">Descripción</th>
+                {hayMedidas && <th scope="col" className="px-4 py-2.5 text-right font-medium">Medidas</th>}
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Cantidad</th>
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Precio unitario</th>
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Subtotal</th>
@@ -69,7 +133,25 @@ export function CotizacionDetallePage() {
               {c.items.map((it) => (
                 <tr key={it.id}>
                   <td className="px-4 py-3 text-texto-suave tabular-nums">{it.linea}</td>
-                  <td className="px-4 py-3">{it.descripcion}</td>
+                  {hayDenominacion && <td className="px-4 py-3 font-medium whitespace-nowrap">{it.denominacion}</td>}
+                  <td className="px-4 py-3">
+                    {it.descripcion}
+                    {it.categoria && (
+                      <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${it.es_servicio ? "bg-hundido text-texto-suave" : "bg-vidrio-tenue text-vidrio-fuerte"}`}>
+                        {it.categoria}
+                      </span>
+                    )}
+                  </td>
+                  {hayMedidas && (
+                    <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-texto-suave tabular-nums">
+                      {it.ancho_m !== null && it.alto_m !== null && (
+                        <>
+                          {formatNumero(it.ancho_m)} × {formatNumero(it.alto_m)} m
+                          {it.m2 !== null && <span className="block">{formatNumero(it.m2)} m²</span>}
+                        </>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     {formatNumero(it.cantidad)} {it.unidad}
                   </td>
@@ -79,13 +161,21 @@ export function CotizacionDetallePage() {
               ))}
             </tbody>
             <tfoot className="border-t border-borde-fuerte">
-              {[
-                ["Neto", c.monto_neto],
-                ["IVA (19 %)", c.iva],
-                ["Total", c.total],
-              ].map(([etiqueta, monto], i) => (
-                <tr key={etiqueta as string} className={i === 2 ? "font-semibold" : ""}>
-                  <th scope="row" colSpan={4} className="px-4 py-2 text-right font-medium text-texto-suave">
+              {(
+                [
+                  ...(c.descuento > 0
+                    ? [
+                        ["Subtotal", c.subtotal_bruto],
+                        ["Descuento", -c.descuento],
+                      ]
+                    : []),
+                  ["Neto", c.monto_neto],
+                  ["IVA (19 %)", c.iva],
+                  ["Total", c.total],
+                ] as [string, number][]
+              ).map(([etiqueta, monto]) => (
+                <tr key={etiqueta} className={etiqueta === "Total" ? "font-semibold" : ""}>
+                  <th scope="row" colSpan={columnasAntesDelSubtotal} className="px-4 py-2 text-right font-medium text-texto-suave">
                     {etiqueta}
                   </th>
                   <td className="px-4 py-2 text-right whitespace-nowrap tabular-nums">{formatCLP(monto as number)}</td>
