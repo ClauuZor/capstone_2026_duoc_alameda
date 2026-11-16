@@ -11,27 +11,33 @@ node "Navegador del usuario" {
 }
 
 node "Servidor de aplicación" {
-  component "API REST\n(FastAPI)" as API
-  component "Autenticación\n(JWT)" as AUTH
+  component "API REST\n(FastAPI, /api/v1)" as API
+  component "Autenticación\n(JWT + bcrypt)" as AUTH
   component "Consultas y\nmétricas" as CONS
-  component "Proceso de ingesta\n(Python, programado)" as ING
-  component "Extracción\n(reglas + IA de respaldo)" as EXT
+  component "Conexión Drive\n(OAuth 2.0 por empresa)" as OAUTH
+  component "Proceso de ingesta\n(manual o programado)" as ING
+  component "Extracción\n(reglas; IA de respaldo pendiente)" as EXT
   API --> AUTH
   API --> CONS
+  API --> OAUTH
+  API --> ING
   ING --> EXT
 }
 
 database "PostgreSQL" as DB
 
 cloud "Servicios externos" {
+  component "Google OAuth 2.0" as GOA
   component "Google Drive API" as GD
   component "Servicio de IA" as IA
 }
 
-SPA --> API : HTTPS · JSON\n/api/v1 (Bearer JWT)
-CONS --> DB : SQL
+SPA --> API : HTTPS · JSON\nBearer JWT (empresa en el token)
+CONS --> DB : SQL (filtrado por empresa)
 AUTH --> DB : SQL
+OAUTH --> GOA : autorización (PKCE)
+OAUTH --> DB : refresh token cifrado
 ING --> DB : SQL
-ING --> GD : cuenta de servicio\n(solo lectura)
-EXT --> IA : solo si las reglas\nno bastan
+ING --> GD : OAuth de la empresa\n(drive.readonly)
+EXT ..> IA : pendiente
 @enduml

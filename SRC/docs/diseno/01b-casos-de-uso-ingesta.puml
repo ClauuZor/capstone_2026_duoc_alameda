@@ -4,12 +4,14 @@ left to right direction
 title Cotiza+ · Casos de uso · Épica 001: ingesta y extracción automática
 
 actor "Planificador\n(tiempo)" as T
+actor "Usuario de\nla empresa" as ADM
 actor "Encargado de\ndocumentos" as ED
 
 rectangle "Cotiza+" {
+  usecase "Conectar Google Drive\n(OAuth, por empresa)" as UC8
   usecase "Detectar cotizaciones\nnuevas (HU-01)" as UC9
   usecase "Extraer datos con\nreglas (HU-02)" as UC10
-  usecase "Extraer datos con\nIA (HU-03)" as UC11
+  usecase "Extraer datos con\nIA (HU-03, pendiente)" as UC11
   usecase "Normalizar y almacenar\nsin duplicados (HU-04)" as UC12
 }
 
@@ -17,6 +19,9 @@ actor "Google Drive" as GD <<sistema externo>>
 actor "Servicio de IA" as IA <<sistema externo>>
 
 ED --> GD : sube el PDF
+ADM --> UC8
+UC8 --> GD : autoriza solo lectura
+ADM --> UC9 : sincronizar ahora
 T --> UC9
 UC9 --> GD : lee la carpeta
 UC9 ..> UC10 : <<include>>
