@@ -1,13 +1,18 @@
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
 
 class IntegracionGoogleDrive(Base):
+    """Conexión OAuth de una empresa con Google Drive.
+
+    La carpeta a revisar se define en Empresa.google_drive_folder_id.
+    El refresh token se guarda cifrado con Fernet (ENCRYPTION_KEY).
+    """
+
     __tablename__ = "integraciones_google_drive"
 
     id: Mapped[int] = mapped_column(
@@ -20,11 +25,6 @@ class IntegracionGoogleDrive(Base):
         nullable=False,
         unique=True,
         index=True
-    )
-
-    folder_id: Mapped[Optional[str]] = mapped_column(
-        String(255),
-        nullable=True
     )
 
     refresh_token_encrypted: Mapped[str] = mapped_column(
