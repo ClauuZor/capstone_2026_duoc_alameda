@@ -20,3 +20,10 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# Video de demostración: contiene datos reales de clientes (no subir)
+Fase 2/Evidencias Grupales/Video demostracion Cotiza+.mp4
+*.mp4
+
+# Archivos temporales de Office
+~$*
